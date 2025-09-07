@@ -513,7 +513,8 @@ class MusicPlayerUI:
         self.is_loading_more = False  # Track if we're loading more results
         self.scroll_offset = 0  # Track viewport scrolling
         # Calculate actual visible lines: from line 7 to height-4 (exclusive)
-        self.visible_lines = max(1, self.height - 11)  # Adjusted for actual space available
+        # Account for visualizer taking 4 lines at the bottom
+        self.visible_lines = max(1, self.height - 15)  # Adjusted for actual space available and visualizer
         self.volume_display_until = 0  # Timestamp until which to show volume
         self.viewing_favorites = True  # Flag to track if we're viewing favorites in main mode
         self.playlist_creation_mode = False  # Track if we're creating a playlist
@@ -556,7 +557,8 @@ class MusicPlayerUI:
         self.height, self.width = self.stdscr.getmaxyx()
         
         # Recalculate visible lines based on new dimensions
-        self.visible_lines = max(1, self.height - 11)
+        # Account for visualizer taking 4 lines at the bottom
+        self.visible_lines = max(1, self.height - 15)
         
         # Adjust scroll offset if terminal got smaller
         if hasattr(self, 'main_display_items'):
@@ -642,7 +644,7 @@ class MusicPlayerUI:
             return  # Outside visible area
             
         y_pos = 7 + display_index
-        if y_pos >= self.height - 4:  # Don't draw outside bounds
+        if y_pos >= self.height - 8:  # Don't draw outside bounds (account for visualizer)
             return
             
         # Handle different item types for main page and playlist view
@@ -774,7 +776,7 @@ class MusicPlayerUI:
         
         # Recalculate visible lines based on current terminal size
         results_start_line = 7
-        results_end_line = height - 4
+        results_end_line = height - 8  # Account for visualizer (4 lines) + controls
         actual_visible_lines = results_end_line - results_start_line
         
         # Update visible_lines if terminal was resized
@@ -872,7 +874,7 @@ class MusicPlayerUI:
         
         # Clear the results area
         results_start_line = 7
-        results_end_line = height - 4
+        results_end_line = height - 8  # Account for visualizer (4 lines) + controls
         for line_num in range(results_start_line, results_end_line):
             self.stdscr.move(line_num, 0)
             self.stdscr.clrtoeol()
@@ -947,7 +949,7 @@ class MusicPlayerUI:
             self.stdscr.addstr(9, 2, "Select tracks (SPACE to toggle, ENTER to create, ESC to cancel):", curses.color_pair(3))
             
             results_start_line = 11
-            results_end_line = height - 4
+            results_end_line = height - 8  # Account for visualizer (4 lines) + controls
             
             # Clear the area
             for line_num in range(results_start_line, results_end_line):
@@ -1460,7 +1462,7 @@ class MusicPlayerUI:
         """Update a single line in playlist creation mode"""
         height, width = self.stdscr.getmaxyx()
         results_start_line = 11
-        results_end_line = height - 4
+        results_end_line = height - 8  # Account for visualizer (4 lines) + controls
         
         if index >= len(self.player.favorites):
             return
