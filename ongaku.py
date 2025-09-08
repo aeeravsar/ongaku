@@ -951,20 +951,27 @@ class MusicPlayerUI:
             results_start_line = 11
             results_end_line = height - 6  # Stop where visualizer starts
             
+            # Calculate actual visible lines for this view
+            actual_visible_lines = results_end_line - results_start_line
+            
             # Clear the area
             for line_num in range(results_start_line, results_end_line):
                 self.stdscr.move(line_num, 0)
                 self.stdscr.clrtoeol()
             
-            # Display favorites with checkboxes
+            # Display favorites with checkboxes (with scrolling support)
             display_row = 0
-            for i, fav in enumerate(self.player.favorites):
-                if display_row >= self.visible_lines - 4:
-                    break
-                    
+            total = len(self.player.favorites)
+            
+            # Display only items within the viewport - using the same pattern as draw_results
+            for i in range(self.scroll_offset, min(self.scroll_offset + actual_visible_lines, total)):
                 y_pos = results_start_line + display_row
+                
+                # Make sure we don't draw outside screen bounds
                 if y_pos >= results_end_line:
                     break
+                
+                fav = self.player.favorites[i]
                 
                 # Check if selected
                 is_selected = any(t.get('id') == fav.get('id') for t in self.playlist_selected_tracks)
@@ -1247,6 +1254,7 @@ class MusicPlayerUI:
                     self.playlist_name = ""
                     self.playlist_selected_tracks = []
                     self.selected_index = 0
+                    self.scroll_offset = 0  # Reset scroll position
                     return True
             return False
             
@@ -1466,8 +1474,13 @@ class MusicPlayerUI:
         
         if index >= len(self.player.favorites):
             return
+        
+        # Calculate display position relative to viewport
+        display_index = index - self.scroll_offset
+        if display_index < 0 or display_index >= (results_end_line - results_start_line):
+            return  # Outside visible area
             
-        y_pos = results_start_line + index
+        y_pos = results_start_line + display_index
         if y_pos >= results_end_line:
             return
             
@@ -1541,15 +1554,45 @@ class MusicPlayerUI:
                 prev_index = self.selected_index
                 self.selected_index = max(0, self.selected_index - 1)
                 if prev_index != self.selected_index:
-                    self.update_playlist_creation_line(prev_index)
-                    self.update_playlist_creation_line(self.selected_index)
+                    # Calculate visible lines for playlist creation (starts at line 11, not 7)
+                    playlist_visible_lines = self.height - 17  # 11 to (height-6)
+                    
+                    # Adjust viewport for playlist creation
+                    needs_scroll = False
+                    if self.selected_index < self.scroll_offset:
+                        self.scroll_offset = self.selected_index
+                        needs_scroll = True
+                    elif self.selected_index >= self.scroll_offset + playlist_visible_lines:
+                        self.scroll_offset = self.selected_index - playlist_visible_lines + 1
+                        needs_scroll = True
+                    
+                    if needs_scroll:
+                        return True  # Need full redraw
+                    else:
+                        self.update_playlist_creation_line(prev_index)
+                        self.update_playlist_creation_line(self.selected_index)
                 return False  # No full redraw needed
             elif key == curses.KEY_DOWN:
                 prev_index = self.selected_index
                 self.selected_index = min(len(self.player.favorites) - 1, self.selected_index + 1)
                 if prev_index != self.selected_index:
-                    self.update_playlist_creation_line(prev_index)
-                    self.update_playlist_creation_line(self.selected_index)
+                    # Calculate visible lines for playlist creation (starts at line 11, not 7)
+                    playlist_visible_lines = self.height - 17  # 11 to (height-6)
+                    
+                    # Adjust viewport for playlist creation
+                    needs_scroll = False
+                    if self.selected_index < self.scroll_offset:
+                        self.scroll_offset = self.selected_index
+                        needs_scroll = True
+                    elif self.selected_index >= self.scroll_offset + playlist_visible_lines:
+                        self.scroll_offset = self.selected_index - playlist_visible_lines + 1
+                        needs_scroll = True
+                    
+                    if needs_scroll:
+                        return True  # Need full redraw
+                    else:
+                        self.update_playlist_creation_line(prev_index)
+                        self.update_playlist_creation_line(self.selected_index)
                 return False  # No full redraw needed
             elif key == ord(' '):  # Space - toggle selection
                 if self.selected_index < len(self.player.favorites):
@@ -1713,6 +1756,7 @@ class MusicPlayerUI:
                 self.playlist_selected_tracks = list(self.current_viewing_playlist.get('tracks', []))  # Copy current tracks
                 self.editing_playlist_id = self.current_viewing_playlist['id']
                 self.selected_index = 0
+                self.scroll_offset = 0  # Reset scroll position
                 self.status_message = f"Editing playlist: {self.current_viewing_playlist['name']}"
                 return True
                 
